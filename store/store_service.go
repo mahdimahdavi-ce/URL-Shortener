@@ -85,7 +85,22 @@ func InitializeStore() *StoreService {
 	return storeService
 }
 
-func saveUrlMapping(shortUrl string, originalUrl string) error {
+func RetriveOriginalUrlFromDb(shortUrl string) (string, error) {
+	var urlMappingRecord UrlMapping
+	// fetching from database
+	result := storeService.postgreSqlClient.Where("shortUrl = ?", shortUrl).First(urlMappingRecord)
+	if result.Error != nil {
+		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
+			return "", errors.New("The specified url dose not exist in database")
+		} else {
+			return "", errors.New(fmt.Sprintf("Sth went wrong while reading from database: %v", result.Error))
+		}
+	}
+
+	return urlMappingRecord.originalUrl, nil
+}
+
+func SaveUrlMapping(shortUrl string, originalUrl string) error {
 	newShortUrlRecord := UrlMapping{
 		shortUrl:    shortUrl,
 		originalUrl: originalUrl,
@@ -103,18 +118,10 @@ func saveUrlMapping(shortUrl string, originalUrl string) error {
 func RetrieveInitialUrl(shortUrl string) (string, error) {
 	originalUrl, err := storeService.redisClient.Get(ctx, shortUrl).Result()
 	if err == redis.Nil {
-		var urlMappingRecord UrlMapping
-		// fetching from database
-		result := storeService.postgreSqlClient.Where("shortUrl = ?", shortUrl).First(urlMappingRecord)
-		if result.Error != nil {
-			if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-				return "", errors.New("The specified url dose not exist in database")
-			} else {
-				return "", errors.New(fmt.Sprintf("Sth went wrong while reading from database: %v", result.Error))
-			}
+		originalUrl, postgreErr := RetriveOriginalUrlFromDb(shortUrl)
+		if postgreErr != nil {
+			return "", postgreErr
 		}
-
-		originalUrl := urlMappingRecord.originalUrl
 		// inserting into redis
 		redisErr := storeService.redisClient.Set(ctx, shortUrl, originalUrl, 0).Err()
 		if redisErr != nil {
