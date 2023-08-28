@@ -28,8 +28,8 @@ type UrlMapping struct {
 	ID          uint
 	CreatedAt   time.Time
 	UpdatedAt   time.Time
-	shortUrl    string
-	originalUrl string
+	ShortUrl    string
+	OriginalUrl string
 }
 
 func loadEnvVariables() {
@@ -68,6 +68,7 @@ func InitializeStore() *StoreService {
 	if postgresErr != nil {
 		log.Fatal("Failed to connect to the PostgreSQL Database")
 	}
+	postgreClient.AutoMigrate(&UrlMapping{})
 	// log
 	fmt.Println("PostgreSQL started successfully")
 
@@ -88,7 +89,7 @@ func InitializeStore() *StoreService {
 func RetriveOriginalUrlFromDb(shortUrl string) (string, error) {
 	var urlMappingRecord UrlMapping
 	// fetching from database
-	result := storeService.postgreSqlClient.Where("shortUrl = ?", shortUrl).First(urlMappingRecord)
+	result := storeService.postgreSqlClient.Where("short_url = ?", shortUrl).First(&urlMappingRecord)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
 			return "", errors.New("The specified url dose not exist in database")
@@ -97,16 +98,16 @@ func RetriveOriginalUrlFromDb(shortUrl string) (string, error) {
 		}
 	}
 
-	return urlMappingRecord.originalUrl, nil
+	return urlMappingRecord.OriginalUrl, nil
 }
 
 func SaveUrlMapping(shortUrl string, originalUrl string) error {
 	newShortUrlRecord := UrlMapping{
-		shortUrl:    shortUrl,
-		originalUrl: originalUrl,
+		ShortUrl:    shortUrl,
+		OriginalUrl: originalUrl,
 	}
 
-	result := storeService.postgreSqlClient.Create(newShortUrlRecord)
+	result := storeService.postgreSqlClient.Create(&newShortUrlRecord)
 	if result.Error != nil {
 		fmt.Printf("Failed saving the urls: OriginalUrl: %v  shortUrl: %v", originalUrl, shortUrl)
 		return errors.New(fmt.Sprintf("Failed saving the urls: OriginalUrl: %v  shortUrl: %v", originalUrl, shortUrl))
@@ -115,7 +116,7 @@ func SaveUrlMapping(shortUrl string, originalUrl string) error {
 	return nil
 }
 
-func RetrieveInitialUrl(shortUrl string) (string, error) {
+func RetrieveOriginalUrl(shortUrl string) (string, error) {
 	originalUrl, err := storeService.redisClient.Get(ctx, shortUrl).Result()
 	if err == redis.Nil {
 		originalUrl, postgreErr := RetriveOriginalUrlFromDb(shortUrl)
