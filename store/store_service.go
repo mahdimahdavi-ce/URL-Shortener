@@ -92,9 +92,9 @@ func RetriveOriginalUrlFromDb(shortUrl string) (string, error) {
 	result := storeService.postgreSqlClient.Where("short_url = ?", shortUrl).First(&urlMappingRecord)
 	if result.Error != nil {
 		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return "", errors.New("The specified url dose not exist in database")
+			return "", errors.New("the specified url dose not exist in database")
 		} else {
-			return "", errors.New(fmt.Sprintf("Sth went wrong while reading from database: %v", result.Error))
+			return "", fmt.Errorf("sth went wrong while reading from database: %v", result.Error)
 		}
 	}
 
@@ -110,7 +110,7 @@ func SaveUrlMapping(shortUrl string, originalUrl string) error {
 	result := storeService.postgreSqlClient.Create(&newShortUrlRecord)
 	if result.Error != nil {
 		fmt.Printf("Failed saving the urls: OriginalUrl: %v  shortUrl: %v", originalUrl, shortUrl)
-		return errors.New(fmt.Sprintf("Failed saving the urls: OriginalUrl: %v  shortUrl: %v", originalUrl, shortUrl))
+		return fmt.Errorf("failed saving the urls: OriginalUrl: %v  shortUrl: %v", originalUrl, shortUrl)
 	}
 
 	return nil
