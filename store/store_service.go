@@ -33,7 +33,7 @@ type UrlMapping struct {
 }
 
 func loadEnvVariables() {
-	err := godotenv.Load("../local.env")
+	err := godotenv.Load("local.env")
 	if err != nil {
 		log.Fatal("Error while loading .env file")
 	}
